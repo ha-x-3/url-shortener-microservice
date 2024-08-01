@@ -20,6 +20,12 @@ mongoose
   .then(() => console.log("MongoDB is connected..."))
   .catch((err) => console.log(err));
 
+const urlSchema = new mongoose.Schema({
+  url: String,
+  short_url: Number
+});
+
+const Url = mongoose.model("url", urlSchema);
 
 app.get('/', function(req, res) {
   res.sendFile(process.cwd() + '/views/index.html');
@@ -29,6 +35,29 @@ app.get('/', function(req, res) {
 app.get('/api/hello', function(req, res) {
   res.json({ greeting: 'hello API' });
 });
+
+app.post("/api/shorturl", async (req, res) => {
+  const url = req.body.url;
+  const dnsLookup = dns.lookup(
+    urlparser.parse(url).hostname,
+    async (err, address) => {
+      if (!address) return res.json({ error: "Invalid URL" });
+      const urls = await Url.countDocuments({});
+      let urlDoc = new Url({
+        url: req.body.url,
+        short_url: urls,
+      });
+       await urlDoc.save();
+      res.json({ original_url: url, short_url:urls });
+    }
+  );
+});
+
+app.get('/api/shorturl/:short_url',async(req,res)=>{
+  
+  const shortedUrl = await Url.findOne({short_url: req.params.short_url})
+  res.redirect(shortedUrl.url)
+})
 
 app.listen(port, function() {
   console.log(`Listening on port ${port}`);
